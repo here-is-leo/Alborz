@@ -12,7 +12,7 @@
 <br>
 
 <!-- Logo Mark -->
-<img src="metatool/web/static/alborz-logo.svg" alt="Alborz" width="100" height="66"/>
+<img src="Alborz/web/static/alborz-logo.svg" alt="Alborz" width="100" height="66"/>
 
 <br><br>
 
@@ -265,16 +265,16 @@ python launcher.py
 
 ```bash
 # Extract metadata
-python -m metatool.cli.main extract photo.jpg
+python -m Alborz.cli.main extract photo.jpg
 
 # Privacy score
-python -m metatool.cli.main score photo.jpg
+python -m Alborz.cli.main score photo.jpg
 
 # Strip all metadata
-python -m metatool.cli.main strip photo.jpg
+python -m Alborz.cli.main strip photo.jpg
 
 # Selective strip (keep EXIF, remove GPS)
-python -m metatool.cli.main strip photo.jpg --keep EXIF
+python -m Alborz.cli.main strip photo.jpg --keep EXIF
 ```
 
 <br>
@@ -424,16 +424,16 @@ python launcher.py
 
 ```bash
 # استخراج متادیتا
-python -m metatool.cli.main extract photo.jpg
+python -m Alborz.cli.main extract photo.jpg
 
 # امتیاز حریم خصوصی
-python -m metatool.cli.main score photo.jpg
+python -m Alborz.cli.main score photo.jpg
 
 # حذف کامل متادیتا
-python -m metatool.cli.main strip photo.jpg
+python -m Alborz.cli.main strip photo.jpg
 
 # حذف انتخابی (EXIF نگه دار، GPS پاک کن)
-python -m metatool.cli.main strip photo.jpg --keep EXIF
+python -m Alborz.cli.main strip photo.jpg --keep EXIF
 ```
 
 </div>
@@ -623,7 +623,7 @@ The privacy score (0–100) is computed by subtracting weighted penalties:
 
 ```
 alborz/
-├── metatool/
+├── Alborz/
 │   ├── core/               # Core engine
 │   │   ├── extractor.py    # Metadata extraction
 │   │   ├── editor.py       # Edit & strip
