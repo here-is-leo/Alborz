@@ -1,0 +1,1778 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ALBORZ — استخراج و پاکسازی متادیتا</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root {
+  --bg-base:#0a0d12; --bg-surface:#12161d; --bg-surface-2:#1a1f28; --bg-inset:#0d1117;
+  --border-subtle:#1f2630; --border-default:#2a323e; --border-strong:#3a4553;
+  --text-primary:#e6eaf0; --text-secondary:#9aa5b1; --text-tertiary:#6b7684;
+  --brand-400:#67e8f9; --brand-500:#22d3ee; --brand-600:#06b6d4;
+  --brand-glow:rgba(34,211,238,.15); --brand-glow-strong:rgba(34,211,238,.28);
+  --success-500:#10b981; --success-600:#059669;
+  --warning-500:#f59e0b; --warning-600:#d97706;
+  --danger-500:#ef4444; --danger-600:#dc2626;
+  --purple-500:#8b5cf6;
+
+  --radius-sm:6px; --radius-md:10px; --radius-lg:16px; --radius-xl:20px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+  --shadow-md:0 4px 12px rgba(0,0,0,.35);
+  --shadow-lg:0 16px 40px rgba(0,0,0,.5);
+  --shadow-brand:0 0 0 1px rgba(34,211,238,.35), 0 12px 32px rgba(34,211,238,.12);
+
+  --ease-out:cubic-bezier(.16,1,.3,1);
+  --dur-fast:150ms; --dur-base:200ms; --dur-slow:300ms;
+
+  --font-sans:'Vazirmatn', system-ui, -apple-system, sans-serif;
+  --font-display:'Inter', 'Vazirmatn', system-ui, sans-serif;
+  --font-mono:'JetBrains Mono', ui-monospace, 'SF Mono', monospace;
+
+  --space-1:4px; --space-2:8px; --space-3:12px; --space-4:16px;
+  --space-5:20px; --space-6:24px; --space-8:32px; --space-10:40px;
+  --space-12:48px; --space-16:64px;
+}
+
+:root[data-theme="light"] {
+  --bg-base:#fafbfc; --bg-surface:#ffffff; --bg-surface-2:#f4f6f8; --bg-inset:#f0f2f5;
+  --border-subtle:#e8ebef; --border-default:#d8dde3; --border-strong:#b8c0c9;
+  --text-primary:#0f1419; --text-secondary:#5b6470; --text-tertiary:#8b95a1;
+  --brand-400:#06b6d4; --brand-500:#0891b2; --brand-600:#0e7490;
+  --brand-glow:rgba(8,145,178,.12); --brand-glow-strong:rgba(8,145,178,.2);
+  --shadow-sm:0 1px 2px rgba(15,20,25,.06);
+  --shadow-md:0 4px 12px rgba(15,20,25,.08);
+  --shadow-lg:0 16px 40px rgba(15,20,25,.12);
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.6;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  min-height: 100vh;
+  padding: var(--space-8) var(--space-5) var(--space-12);
+  transition: background-color var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out);
+}
+@media (min-width: 1024px) { body { padding: var(--space-10) var(--space-8) var(--space-16); } }
+
+.container { max-width: 1240px; margin-inline: auto; }
+
+:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.icon { width: 1em; height: 1em; display: inline-block; vertical-align: -0.125em; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-4); margin-bottom: var(--space-10);
+  padding-bottom: var(--space-6);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* ALBORZ brand */
+.brand { display: flex; align-items: center; gap: var(--space-4); }
+.brand__mark {
+  width: 52px; height: 44px; display: grid; place-items: center;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+.brand__mark svg { width: 100%; height: 100%; display: block; }
+
+.brand__text { display: flex; flex-direction: column; gap: 2px; }
+.brand__wordmark {
+  font-family: var(--font-display);
+  font-size: 26px; font-weight: 800; letter-spacing: 0.22em;
+  color: var(--text-primary);
+  line-height: 1; margin: 0;
+  direction: ltr;
+}
+.brand__wordmark .letter-highlight { color: var(--brand-500); }
+.brand__tagline {
+  font-family: var(--font-display);
+  font-size: 9.5px; font-weight: 500; letter-spacing: 0.28em;
+  color: var(--text-tertiary); text-transform: uppercase;
+  direction: ltr; line-height: 1.4;
+  display: flex; align-items: center; gap: 6px;
+}
+.brand__tagline .dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--brand-500); display: inline-block;
+  box-shadow: 0 0 6px var(--brand-glow-strong);
+}
+
+.topbar__actions { display: flex; align-items: center; gap: var(--space-2); }
+
+.icon-btn {
+  width: 38px; height: 38px; display: grid; place-items: center;
+  background: var(--bg-surface); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); color: var(--text-secondary);
+  cursor: pointer; transition: color var(--dur-fast) var(--ease-out),
+                              border-color var(--dur-fast) var(--ease-out),
+                              background-color var(--dur-fast) var(--ease-out);
+}
+.icon-btn:hover { color: var(--brand-400); border-color: var(--border-strong); background: var(--bg-surface-2); }
+.icon-btn .icon { width: 18px; height: 18px; }
+
+.version-pill {
+  font-family: var(--font-mono); font-size: 11px;
+  padding: 5px 10px; border-radius: 999px;
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  color: var(--text-tertiary);
+}
+
+/* ============================================================
+   HERO / DROP ZONE
+   ============================================================ */
+.hero { text-align: center; margin-bottom: var(--space-8); }
+.hero__title {
+  font-size: clamp(28px, 4vw, 42px); font-weight: 700; letter-spacing: -0.02em;
+  margin: 0 0 var(--space-3); line-height: 1.15;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.hero__sub { color: var(--text-secondary); font-size: 15px; max-width: 560px; margin: 0 auto; }
+
+.drop {
+  position: relative; margin-top: var(--space-8);
+  border: 1.5px dashed var(--border-default); border-radius: var(--radius-xl);
+  padding: var(--space-12) var(--space-6); text-align: center;
+  background: radial-gradient(ellipse at top, var(--brand-glow), transparent 60%), var(--bg-surface);
+  cursor: pointer;
+  transition: border-color var(--dur-base) var(--ease-out),
+              background-color var(--dur-base) var(--ease-out),
+              transform var(--dur-base) var(--ease-out);
+}
+.drop:hover { border-color: var(--brand-500); background-color: var(--bg-surface-2); }
+.drop.is-active {
+  border-color: var(--brand-500); border-style: solid;
+  background-color: var(--bg-surface-2); transform: scale(1.005);
+  box-shadow: var(--shadow-brand);
+}
+.drop__icon {
+  width: 56px; height: 56px; margin: 0 auto var(--space-4);
+  display: grid; place-items: center; border-radius: var(--radius-lg);
+  background: var(--bg-surface-2); border: 1px solid var(--border-default);
+  color: var(--brand-400);
+}
+.drop__icon .icon { width: 26px; height: 26px; }
+.drop__title { font-size: 16px; font-weight: 600; margin: 0 0 var(--space-1); }
+.drop__hint  { font-size: 13px; color: var(--text-tertiary); margin: 0 0 var(--space-5); }
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  padding: 10px 18px; border-radius: var(--radius-md);
+  font-family: inherit; font-size: 14px; font-weight: 600;
+  border: 1px solid transparent; cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
+}
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn .icon { width: 16px; height: 16px; }
+
+.btn--primary { background: var(--brand-500); color: #06151a; }
+.btn--primary:hover:not(:disabled) { background: var(--brand-400); }
+.btn--danger  { background: var(--danger-500); color: #fff; }
+.btn--danger:hover:not(:disabled) { background: var(--danger-600); }
+.btn--success { background: var(--success-500); color: #fff; }
+.btn--success:hover:not(:disabled) { background: var(--success-600); }
+.btn--purple  { background: var(--purple-500); color: #fff; }
+.btn--purple:hover:not(:disabled) { background: #7c3aed; }
+.btn--ghost {
+  background: transparent; color: var(--text-secondary);
+  border-color: var(--border-default);
+}
+.btn--ghost:hover:not(:disabled) { color: var(--text-primary); border-color: var(--border-strong); background: var(--bg-surface-2); }
+.btn--ghost-accent { background: transparent; color: var(--brand-400); border-color: var(--brand-500); }
+.btn--ghost-accent:hover:not(:disabled) { background: var(--brand-glow); }
+
+/* ============================================================
+   TABS
+   ============================================================ */
+.tabs {
+  display: flex; gap: var(--space-1); padding: 4px;
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md); margin-bottom: var(--space-6);
+  overflow-x: auto; scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  flex: 1; min-width: 130px;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  padding: 9px 14px; border-radius: var(--radius-sm);
+  background: transparent; border: none; color: var(--text-secondary);
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  transition: color var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out);
+}
+.tab:hover { color: var(--text-primary); }
+.tab[aria-selected="true"] { background: var(--bg-surface-2); color: var(--text-primary); box-shadow: var(--shadow-sm); }
+.tab .icon { width: 15px; height: 15px; }
+
+/* ============================================================
+   CARDS / BENTO
+   ============================================================ */
+.card {
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg); padding: var(--space-6);
+  transition: border-color var(--dur-base) var(--ease-out);
+}
+.card:hover { border-color: var(--border-default); }
+.card__title {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-tertiary); margin: 0 0 var(--space-4);
+}
+.card__title .icon { width: 14px; height: 14px; color: var(--brand-400); }
+
+.bento { display: grid; gap: var(--space-5); grid-template-columns: 1fr; }
+@media (min-width: 768px) {
+  .bento { grid-template-columns: repeat(12, 1fr); }
+  .bento__file    { grid-column: span 7; }
+  .bento__privacy { grid-column: span 5; }
+  .bento__summary { grid-column: span 12; }
+  .bento__map     { grid-column: span 12; }
+}
+
+.kv-grid {
+  display: grid; grid-template-columns: auto 1fr; gap: var(--space-3) var(--space-5);
+  align-items: baseline;
+}
+.kv-grid dt { color: var(--text-tertiary); font-size: 13px; white-space: nowrap; }
+.kv-grid dd {
+  margin: 0; color: var(--text-primary); font-size: 13px;
+  font-family: var(--font-mono); direction: ltr; text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.kv-grid dd.filename { font-family: var(--font-sans); direction: rtl; text-align: right; font-weight: 600; }
+
+.privacy-card { display: flex; flex-direction: column; gap: var(--space-4); }
+.privacy-score { display: flex; align-items: baseline; gap: var(--space-2); }
+.privacy-score__number {
+  font-size: clamp(40px, 6vw, 56px); font-weight: 700; letter-spacing: -0.03em;
+  line-height: 1; font-variant-numeric: tabular-nums;
+}
+.privacy-score__denom { color: var(--text-tertiary); font-size: 18px; font-weight: 500; }
+.privacy-score--safe   .privacy-score__number { color: var(--success-500); }
+.privacy-score--medium .privacy-score__number { color: var(--warning-500); }
+.privacy-score--danger .privacy-score__number { color: var(--danger-500); }
+
+.privacy-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; width: fit-content;
+}
+.privacy-badge--safe   { background: rgba(16,185,129,.15); color: #6ee7b7; }
+.privacy-badge--medium { background: rgba(245,158,11,.15); color: #fcd34d; }
+.privacy-badge--danger { background: rgba(239,68,68,.15); color: #fca5a5; }
+:root[data-theme="light"] .privacy-badge--safe   { background: rgba(16,185,129,.12); color: #047857; }
+:root[data-theme="light"] .privacy-badge--medium { background: rgba(245,158,11,.14); color: #b45309; }
+:root[data-theme="light"] .privacy-badge--danger { background: rgba(239,68,68,.12); color: #b91c1c; }
+
+.risk-list { display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-2); }
+.risk {
+  display: flex; gap: var(--space-3); padding: var(--space-3);
+  background: var(--bg-surface-2); border-radius: var(--radius-md);
+  border-inline-end: 3px solid var(--border-strong); font-size: 13px;
+}
+.risk--high   { border-inline-end-color: var(--danger-500); }
+.risk--medium { border-inline-end-color: var(--warning-500); }
+.risk__icon { color: var(--text-tertiary); flex-shrink: 0; margin-top: 2px; }
+.risk--high   .risk__icon { color: var(--danger-500); }
+.risk--medium .risk__icon { color: var(--warning-500); }
+.risk__body { flex: 1; }
+.risk__label { font-weight: 600; color: var(--text-primary); margin-bottom: 2px; }
+.risk__detail { color: var(--text-secondary); font-size: 12.5px; }
+
+.summary-grid { display: grid; grid-template-columns: 1fr; gap: 0; }
+@media (min-width: 600px) { .summary-grid { grid-template-columns: 1fr 1fr; column-gap: var(--space-8); } }
+.summary-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--space-4); padding: var(--space-3) 0;
+  border-bottom: 1px dashed var(--border-subtle);
+}
+.summary-row:last-child { border-bottom: none; }
+.summary-row__label { color: var(--text-secondary); font-size: 13px; }
+.summary-row__value {
+  color: var(--text-primary); font-size: 13px; font-weight: 600;
+  font-family: var(--font-mono); direction: ltr;
+  max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+#map { height: 380px; border-radius: var(--radius-md); z-index: 1; background: var(--bg-inset); }
+.map-info {
+  margin-top: var(--space-4); padding: var(--space-4);
+  background: var(--bg-surface-2); border-radius: var(--radius-md);
+  font-size: 13px; border-inline-end: 3px solid var(--brand-500);
+}
+.map-info b { color: var(--brand-400); font-weight: 600; }
+.map-info span[dir="ltr"] { font-family: var(--font-mono); direction: ltr; unicode-bidi: isolate; }
+
+.action-bar {
+  display: flex; flex-wrap: wrap; gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg); margin-top: var(--space-5);
+}
+
+.explorer { margin-top: var(--space-6); }
+.explorer__head {
+  display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center;
+  margin-bottom: var(--space-4);
+}
+.search { position: relative; flex: 1; min-width: 220px; }
+.search__icon {
+  position: absolute; inset-inline-start: 12px; top: 50%; transform: translateY(-50%);
+  color: var(--text-tertiary); pointer-events: none; width: 16px; height: 16px;
+}
+.search input {
+  width: 100%; padding: 10px 12px;
+  padding-inline-start: 38px; padding-inline-end: 12px;
+  background: var(--bg-inset); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); color: var(--text-primary);
+  font-family: inherit; font-size: 13.5px;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out);
+}
+.search input::placeholder { color: var(--text-tertiary); }
+.search input:focus { outline: none; border-color: var(--brand-500); background: var(--bg-surface); }
+
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.chip {
+  padding: 5px 12px; border-radius: 999px;
+  background: var(--bg-surface-2); border: 1px solid var(--border-subtle);
+  color: var(--text-secondary); font-size: 12px; font-weight: 500;
+  cursor: pointer; font-family: inherit;
+  transition: color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out);
+}
+.chip:hover { color: var(--text-primary); border-color: var(--border-default); }
+.chip[aria-pressed="true"] { background: var(--brand-glow); color: var(--brand-400); border-color: var(--brand-500); }
+
+.tag-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tag-table thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--bg-surface-2); color: var(--text-tertiary);
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  text-align: start; padding: 12px 14px;
+  border-bottom: 1px solid var(--border-default);
+}
+.tag-table tbody td {
+  padding: 11px 14px; border-bottom: 1px solid var(--border-subtle);
+  vertical-align: top;
+}
+.tag-table tbody tr:hover { background: var(--bg-surface-2); }
+.tag-table tbody tr:last-child td { border-bottom: none; }
+.tag-table tbody tr.is-edited { background: rgba(245,158,11,.06); }
+
+.tag-group {
+  font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary);
+  padding: 2px 8px; border-radius: 999px; background: var(--bg-inset);
+  display: inline-block; white-space: nowrap;
+}
+.tag-name {
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--brand-400);
+  cursor: help; border-bottom: 1px dashed var(--border-strong);
+  padding-bottom: 1px;
+}
+.tag-value {
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--text-primary);
+  direction: ltr; text-align: start; word-break: break-all;
+  display: block; max-width: 100%;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.edited-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(245,158,11,.15); color: var(--warning-500);
+  padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700;
+  margin-inline-end: 6px;
+}
+.edit-input {
+  width: 100%; padding: 6px 10px;
+  background: var(--bg-inset); border: 1px solid var(--brand-500);
+  border-radius: var(--radius-sm); color: var(--text-primary);
+  font-family: var(--font-mono); font-size: 12.5px; direction: ltr;
+}
+.edit-input:focus { outline: none; box-shadow: 0 0 0 3px var(--brand-glow); }
+
+.batch-bar {
+  display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center;
+  padding: var(--space-4);
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg); margin-bottom: var(--space-5);
+}
+.batch-bar__count {
+  display: inline-flex; align-items: center; gap: var(--space-2);
+  padding: 6px 14px; border-radius: 999px;
+  background: var(--brand-glow); color: var(--brand-400);
+  font-size: 13px; font-weight: 700;
+}
+.select {
+  padding: 9px 34px 9px 12px;
+  padding-inline-start: 12px; padding-inline-end: 34px;
+  background: var(--bg-inset); border: 1px solid var(--border-default);
+  border-radius: var(--radius-md); color: var(--text-primary);
+  font-family: inherit; font-size: 13.5px; cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239aa5b1' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: left 12px center;
+}
+.select:focus { outline: none; border-color: var(--brand-500); }
+
+.file-list { display: flex; flex-direction: column; gap: var(--space-3); }
+.file-item {
+  display: flex; align-items: center; gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.file-item:hover { border-color: var(--border-default); }
+.file-item__icon {
+  width: 42px; height: 42px; flex-shrink: 0;
+  display: grid; place-items: center; border-radius: var(--radius-md);
+  background: var(--bg-surface-2); color: var(--brand-400);
+}
+.file-item__icon .icon { width: 20px; height: 20px; }
+.file-item__body { flex: 1; min-width: 0; }
+.file-item__name {
+  font-weight: 600; font-size: 14px; margin-bottom: 4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.file-item__meta {
+  font-size: 12px; color: var(--text-tertiary); font-family: var(--font-mono);
+  direction: ltr; text-align: start;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.file-item__remove {
+  width: 32px; height: 32px; display: grid; place-items: center;
+  background: transparent; border: none; color: var(--text-tertiary);
+  border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0;
+  transition: color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.file-item__remove:hover { color: var(--danger-500); background: var(--bg-surface-2); }
+
+.score-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 999px;
+  font-size: 12px; font-weight: 700; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.score-badge--safe   { background: rgba(16,185,129,.15); color: #6ee7b7; }
+.score-badge--medium { background: rgba(245,158,11,.15); color: #fcd34d; }
+.score-badge--danger { background: rgba(239,68,68,.15); color: #fca5a5; }
+.score-badge--pending { background: var(--bg-surface-2); color: var(--text-tertiary); }
+
+.compare-grid { display: grid; gap: var(--space-4); grid-template-columns: 1fr; }
+@media (min-width: 640px) { .compare-grid { grid-template-columns: 1fr 1fr; } }
+.file-slot {
+  display: block; padding: var(--space-5);
+  background: var(--bg-inset); border: 1.5px dashed var(--border-default);
+  border-radius: var(--radius-md); cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out), background-color var(--dur-fast) var(--ease-out);
+}
+.file-slot:hover { border-color: var(--brand-500); background: var(--bg-surface-2); }
+.file-slot input[type=file] { display: none; }
+.file-slot__label {
+  display: flex; align-items: center; gap: var(--space-2);
+  font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--text-tertiary); margin-bottom: var(--space-3);
+}
+.file-slot__value {
+  font-size: 13px; color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.file-slot__value.is-empty { color: var(--text-tertiary); font-style: italic; }
+
+.diff-stats { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-5); }
+.diff-stat {
+  padding: 8px 14px; border-radius: var(--radius-md);
+  font-size: 12.5px; font-weight: 600;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.diff-stat--a       { background: rgba(239,68,68,.12); color: #fca5a5; }
+.diff-stat--b       { background: rgba(16,185,129,.12); color: #6ee7b7; }
+.diff-stat--changed { background: rgba(245,158,11,.12); color: #fcd34d; }
+.diff-stat--same    { background: var(--bg-surface-2); color: var(--text-tertiary); }
+
+.diff-section { margin-top: var(--space-6); }
+.diff-section__title {
+  font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-tertiary); margin: 0 0 var(--space-3);
+  display: flex; align-items: center; gap: var(--space-2);
+}
+.diff-section__title .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.diff-section__title .dot--a { background: var(--danger-500); }
+.diff-section__title .dot--b { background: var(--success-500); }
+.diff-section__title .dot--c { background: var(--warning-500); }
+
+.state {
+  padding: var(--space-12) var(--space-6); text-align: center;
+  background: var(--bg-surface); border: 1px dashed var(--border-default);
+  border-radius: var(--radius-lg); color: var(--text-secondary);
+}
+.state__icon {
+  width: 48px; height: 48px; margin: 0 auto var(--space-4);
+  display: grid; place-items: center; border-radius: var(--radius-md);
+  background: var(--bg-surface-2); color: var(--text-tertiary);
+}
+.state__icon .icon { width: 24px; height: 24px; }
+.state__title { font-size: 15px; font-weight: 600; color: var(--text-primary); margin: 0 0 var(--space-2); }
+.state__body { font-size: 13.5px; max-width: 380px; margin: 0 auto; }
+
+.toast-stack {
+  position: fixed; inset-block-end: var(--space-6); inset-inline-start: var(--space-6);
+  display: flex; flex-direction: column; gap: var(--space-2);
+  z-index: 10000; pointer-events: none;
+}
+.toast {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: 12px 16px; border-radius: var(--radius-md);
+  background: var(--bg-surface-2); border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-lg); font-size: 13.5px; max-width: 380px;
+  pointer-events: auto; animation: toast-in var(--dur-slow) var(--ease-out);
+}
+.toast--error { border-color: var(--danger-500); }
+.toast--error .toast__icon { color: var(--danger-500); }
+.toast--success { border-color: var(--success-500); }
+.toast--success .toast__icon { color: var(--success-500); }
+.toast__icon { flex-shrink: 0; }
+.toast__icon .icon { width: 18px; height: 18px; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-surface) 0%, var(--bg-surface-2) 50%, var(--bg-surface) 100%);
+  background-size: 200% 100%; animation: sk 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes sk { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.sk-line { height: 12px; margin: 8px 0; }
+
+.tag-tooltip {
+  position: fixed; z-index: 9999; max-width: 340px;
+  background: var(--bg-surface-2); border: 1px solid var(--brand-500);
+  border-radius: var(--radius-md); padding: 12px 14px;
+  font-size: 12.5px; color: var(--text-primary);
+  box-shadow: var(--shadow-lg); line-height: 1.6;
+  pointer-events: none; opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+.tag-tooltip.is-visible { opacity: 1; }
+.tag-tooltip__tag { color: var(--brand-400); font-family: var(--font-mono); font-weight: 700; }
+.tag-tooltip__desc { margin-top: 6px; color: var(--text-secondary); }
+.tag-tooltip__cats { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 4px; }
+.tag-tooltip__cat {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  background: var(--bg-inset); font-size: 10.5px; color: var(--text-secondary);
+  font-weight: 500;
+}
+.tag-tooltip__cat--privacy { background: rgba(239,68,68,.15); color: #fca5a5; }
+.tag-tooltip__warn {
+  margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-subtle);
+  color: var(--danger-500); font-size: 11.5px;
+  display: flex; align-items: center; gap: 6px;
+}
+
+.spinner {
+  width: 14px; height: 14px; display: inline-block;
+  border: 2px solid currentColor; border-top-color: transparent;
+  border-radius: 50%; animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+   CREATOR / FOOTER
+   ============================================================ */
+.site-footer { margin-top: var(--space-16); padding-top: var(--space-10); border-top: 1px solid var(--border-subtle); }
+
+.creator {
+  display: grid; gap: var(--space-6);
+  grid-template-columns: 1fr;
+  padding: var(--space-6);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  position: relative; overflow: hidden;
+}
+.creator::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at top right, var(--brand-glow), transparent 55%);
+  pointer-events: none;
+}
+@media (min-width: 768px) {
+  .creator { grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-8); }
+}
+
+.creator__avatar {
+  width: 64px; height: 64px; flex-shrink: 0;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-600));
+  color: #06151a;
+  font-family: var(--font-display);
+  font-size: 22px; font-weight: 800; letter-spacing: -0.02em;
+  box-shadow: var(--shadow-brand);
+}
+
+.creator__body { min-width: 0; }
+.creator__eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--brand-400); margin-bottom: 6px;
+}
+.creator__name {
+  font-family: var(--font-display); font-size: 22px; font-weight: 700;
+  letter-spacing: -0.01em; margin: 0 0 4px; color: var(--text-primary);
+}
+.creator__name .handle {
+  font-family: var(--font-mono); font-size: 13px; font-weight: 500;
+  color: var(--text-tertiary); letter-spacing: 0;
+  margin-inline-start: 8px;
+}
+.creator__role {
+  font-size: 13.5px; color: var(--text-secondary);
+  margin: 0 0 10px;
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.creator__role .sep { color: var(--border-strong); }
+.creator__meta {
+  display: flex; flex-wrap: wrap; gap: var(--space-4);
+  font-size: 12.5px; color: var(--text-tertiary);
+}
+.creator__meta span { display: inline-flex; align-items: center; gap: 5px; }
+.creator__meta .icon { width: 13px; height: 13px; }
+.creator__meta .mono { font-family: var(--font-mono); direction: ltr; }
+
+.creator__links {
+  display: flex; flex-wrap: wrap; gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+@media (min-width: 768px) { .creator__links { margin-top: 0; justify-content: flex-end; max-width: 320px; } }
+
+.social-link {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-radius: var(--radius-md);
+  background: var(--bg-surface-2); border: 1px solid var(--border-subtle);
+  color: var(--text-secondary); text-decoration: none;
+  font-size: 12.5px; font-weight: 500;
+  transition: color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              background-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
+}
+.social-link:hover {
+  color: var(--brand-400);
+  border-color: var(--brand-500);
+  background: var(--brand-glow);
+  transform: translateY(-1px);
+}
+.social-link .icon { width: 14px; height: 14px; }
+
+.site-footer__bottom {
+  display: flex; flex-wrap: wrap; gap: var(--space-3);
+  justify-content: space-between; align-items: center;
+  margin-top: var(--space-6); padding: var(--space-5) var(--space-2);
+  font-size: 12px; color: var(--text-tertiary);
+}
+.site-footer__bottom .brand-mini {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-family: var(--font-display); letter-spacing: .18em;
+  font-weight: 700; font-size: 11px; color: var(--text-secondary);
+  direction: ltr;
+}
+.site-footer__bottom .brand-mini svg { width: 22px; height: 18px; color: var(--brand-500); }
+
+/* Helpers */
+.hidden { display: none !important; }
+.mono { font-family: var(--font-mono); direction: ltr; text-align: start; }
+</style>
+</head>
+<body>
+
+<!-- ===== SVG SPRITE ===== -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <!-- Alborz mountain mark -->
+    <symbol id="i-alborz" viewBox="0 0 120 80">
+      <path d="M6 74 L42 10 L58 38 L72 20 L114 74 L94 74 L72 42 L64 56 L56 42 L44 62 L36 48 L20 74 Z" fill="currentColor"/>
+    </symbol>
+
+    <!-- UI icons -->
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
+    <symbol id="i-video" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></symbol>
+    <symbol id="i-shield-check" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
+    <symbol id="i-save" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+    <symbol id="i-compare" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></symbol>
+    <symbol id="i-file-pdf" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 13h1.5a1.5 1.5 0 1 1 0 3H9v3M9 13v6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 7L2 7"/></symbol>
+    <symbol id="i-github" viewBox="0 0 24 24"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></symbol>
+    <symbol id="i-linkedin" viewBox="0 0 24 24"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></symbol>
+    <symbol id="i-telegram" viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+    <symbol id="i-coffee" viewBox="0 0 24 24"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></symbol>
+  </defs>
+</svg>
+
+<div class="container">
+
+  <!-- ================= TOPBAR ================= -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand__mark" aria-label="Alborz">
+        <svg viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg">
+          <use href="#i-alborz"/>
+        </svg>
+      </div>
+      <div class="brand__text">
+        <h1 class="brand__wordmark">ALBORZ</h1>
+        <p class="brand__tagline">
+          METADATA EXTRACTOR
+          <span class="dot"></span>
+          FILE ANALYSIS
+        </p>
+      </div>
+    </div>
+    <div class="topbar__actions">
+      <span class="version-pill" id="versionPill">v…</span>
+      <button class="icon-btn" id="themeToggle" aria-label="تغییر پوسته">
+        <svg class="icon" id="themeIcon"><use href="#i-sun"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= HERO / DROP ================= -->
+  <section class="hero">
+    <h2 class="hero__title">فایل‌هایت را بررسی کن</h2>
+    <p class="hero__sub">متادیتای پنهان را ببین، حریم خصوصی را امتیاز بگیر و اطلاعات حساس را پاک کن.</p>
+
+    <div class="drop" id="drop" role="button" tabindex="0" aria-label="انتخاب فایل‌ها">
+      <div class="drop__icon"><svg class="icon"><use href="#i-upload"/></svg></div>
+      <p class="drop__title">فایل‌ها را بکشید یا برای انتخاب کلیک کنید</p>
+      <p class="drop__hint">JPG · PNG · HEIC · MP4 · MOV · MP3 · WAV و بیشتر — چند فایل همزمان</p>
+      <input type="file" id="fileInput" multiple hidden>
+      <button class="btn btn--primary" id="btn" type="button">
+        <svg class="icon"><use href="#i-plus"/></svg> انتخاب فایل‌ها
+      </button>
+    </div>
+  </section>
+
+  <!-- ================= TABS ================= -->
+  <div class="tabs" role="tablist" aria-label="حالت‌های نمایش">
+    <button class="tab" role="tab" aria-selected="true" data-tab="single" id="tabSingle">
+      <svg class="icon"><use href="#i-file"/></svg> فایل
+    </button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="batch" id="tabBatch">
+      <svg class="icon"><use href="#i-shield-check"/></svg> دسته‌ای
+    </button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="compare" id="tabCompare">
+      <svg class="icon"><use href="#i-compare"/></svg> مقایسه
+    </button>
+  </div>
+
+  <!-- ================= SINGLE ================= -->
+  <section id="singleContainer" role="tabpanel" aria-labelledby="tabSingle" class="hidden">
+    <div class="bento">
+      <div class="card bento__file">
+        <h3 class="card__title"><svg class="icon"><use href="#i-file"/></svg> مشخصات فایل</h3>
+        <dl class="kv-grid" id="info"></dl>
+      </div>
+      <div class="card bento__privacy privacy-card" id="privacy"></div>
+      <div class="card bento__summary" id="summary"></div>
+      <div class="card bento__map hidden" id="mapContainer">
+        <h3 class="card__title"><svg class="icon"><use href="#i-pin"/></svg> موقعیت جغرافیایی</h3>
+        <div id="map"></div>
+        <div class="map-info hidden" id="mapInfo"></div>
+      </div>
+    </div>
+
+    <div class="action-bar" id="actions">
+      <button class="btn btn--danger" id="stripBtn"><svg class="icon"><use href="#i-trash"/></svg> حذف کامل متادیتا</button>
+      <button class="btn btn--ghost" id="stripKeepBtn"><svg class="icon"><use href="#i-shield-check"/></svg> فقط حذف GPS</button>
+      <button class="btn btn--purple" id="pdfBtn"><svg class="icon"><use href="#i-file-pdf"/></svg> گزارش PDF</button>
+      <button class="btn btn--ghost-accent" id="editToggleBtn" style="margin-inline-start:auto">
+        <svg class="icon"><use href="#i-edit"/></svg> حالت ویرایش
+      </button>
+      <button class="btn btn--success hidden" id="saveEditBtn">
+        <svg class="icon"><use href="#i-save"/></svg> ذخیره و دانلود
+      </button>
+      <span class="chip hidden" id="editCount" style="cursor:default"></span>
+    </div>
+
+    <div class="explorer">
+      <div class="explorer__head">
+        <label class="search">
+          <svg class="icon search__icon"><use href="#i-search"/></svg>
+          <input type="text" id="search" placeholder="جستجو در تگ‌ها و مقادیر…" aria-label="جستجو">
+        </label>
+        <div class="chips" id="groupChips" role="group" aria-label="فیلتر گروه"></div>
+      </div>
+      <div id="result"></div>
+    </div>
+  </section>
+
+  <!-- ================= BATCH ================= -->
+  <section id="batchContainer" role="tabpanel" aria-labelledby="tabBatch" class="hidden">
+    <div class="batch-bar">
+      <span class="batch-bar__count" id="fileCount">۰ فایل</span>
+      <select id="stripMode" class="select" aria-label="حالت پاکسازی">
+        <option value="full">حذف کامل متادیتا</option>
+        <option value="keep_exif">حفظ EXIF، حذف بقیه</option>
+        <option value="keep_all_but_gps">فقط حذف GPS</option>
+      </select>
+      <button class="btn btn--danger" id="batchStripBtn">
+        <svg class="icon"><use href="#i-download"/></svg> پاکسازی همه (ZIP)
+      </button>
+      <button class="btn btn--ghost" id="clearBtn" style="margin-inline-start:auto">
+        <svg class="icon"><use href="#i-x"/></svg> پاک کردن لیست
+      </button>
+    </div>
+    <div class="file-list" id="filesList"></div>
+  </section>
+
+  <!-- ================= COMPARE ================= -->
+  <section id="compareContainer" role="tabpanel" aria-labelledby="tabCompare" class="hidden">
+    <div class="card">
+      <h3 class="card__title"><svg class="icon"><use href="#i-compare"/></svg> مقایسه دو فایل</h3>
+      <div class="compare-grid" style="margin-bottom:var(--space-5)">
+        <label class="file-slot">
+          <span class="file-slot__label">فایل A</span>
+          <span class="file-slot__value is-empty" id="fileALabel">فایلی انتخاب نشده</span>
+          <input type="file" id="fileA">
+        </label>
+        <label class="file-slot">
+          <span class="file-slot__label">فایل B</span>
+          <span class="file-slot__value is-empty" id="fileBLabel">فایلی انتخاب نشده</span>
+          <input type="file" id="fileB">
+        </label>
+      </div>
+      <button class="btn btn--primary" id="doCompareBtn">
+        <svg class="icon"><use href="#i-search"/></svg> مقایسه کن
+      </button>
+      <div id="compareResult" style="margin-top:var(--space-6)"></div>
+    </div>
+  </section>
+
+  <!-- ================= CREATOR / FOOTER ================= -->
+  <footer class="site-footer">
+    <div class="creator">
+      <div class="creator__avatar" aria-hidden="true">IF</div>
+
+      <div class="creator__body">
+        <div class="creator__eyebrow">ساخته شده توسط</div>
+        <h3 class="creator__name">
+          Ilya Farahani
+          <span class="handle">· @Here-is-leo</span>
+        </h3>
+        <p class="creator__role">
+          Backend Developer
+          <span class="sep">·</span>
+          تمرکز روی Application Security
+        </p>
+        <div class="creator__meta">
+          <span><svg class="icon"><use href="#i-pin"/></svg> Tehran, Iran</span>
+          <span><svg class="icon"><use href="#i-clock"/></svg> <span class="mono">UTC +03:30</span></span>
+        </div>
+      </div>
+
+      <div class="creator__links">
+        <a class="social-link" href="mailto:ilyafarahanii@gmail.com" title="ایمیل">
+          <svg class="icon"><use href="#i-mail"/></svg> Email
+        </a>
+        <a class="social-link" href="https://here-is-leo.ir" target="_blank" rel="noopener" title="وب‌سایت">
+          <svg class="icon"><use href="#i-globe"/></svg> Website
+        </a>
+        <a class="social-link" href="https://github.com/here-is-leo" target="_blank" rel="noopener" title="GitHub">
+          <svg class="icon"><use href="#i-github"/></svg> GitHub
+        </a>
+        <a class="social-link" href="https://t.me/Here_is_leo" target="_blank" rel="noopener" title="Telegram">
+          <svg class="icon"><use href="#i-telegram"/></svg> Telegram
+        </a>
+        <a class="social-link" href="https://www.linkedin.com/in/ilya-farahani" target="_blank" rel="noopener" title="LinkedIn">
+          <svg class="icon"><use href="#i-linkedin"/></svg> LinkedIn
+        </a>
+        <a class="social-link" href="https://www.coffeebede.com/leo" target="_blank" rel="noopener" title="حمایت">
+          <svg class="icon"><use href="#i-coffee"/></svg> Buy me a coffee
+        </a>
+      </div>
+    </div>
+
+    <div class="site-footer__bottom">
+      <span class="brand-mini">
+        <svg viewBox="0 0 120 80" xmlns="http://www.w3.org/2000/svg"><use href="#i-alborz"/></svg>
+        ALBORZ
+      </span>
+      <span>© <span id="year"></span> — ساخته شده با ♥ </span>
+    </div>
+  </footer>
+
+</div>
+
+<div id="tagTooltip" class="tag-tooltip" role="tooltip" aria-hidden="true"></div>
+<div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+
+<script>
+/* ============================================================
+   STATE
+   ============================================================ */
+const $ = (id) => document.getElementById(id);
+
+const drop = $('drop'), input = $('fileInput'), btn = $('btn');
+const singleContainer = $('singleContainer');
+const batchContainer  = $('batchContainer');
+const compareContainer = $('compareContainer');
+const filesList = $('filesList'), fileCount = $('fileCount');
+const batchStripBtn = $('batchStripBtn'), clearBtn = $('clearBtn'), stripMode = $('stripMode');
+
+const info = $('info'), summaryEl = $('summary'), privacyEl = $('privacy');
+const result = $('result'), search = $('search'), groupChips = $('groupChips');
+const stripBtn = $('stripBtn'), stripKeepBtn = $('stripKeepBtn'), pdfBtn = $('pdfBtn');
+
+const mapContainer = $('mapContainer'), mapInfo = $('mapInfo');
+let leafletMap = null, leafletMarker = null;
+
+const editToggleBtn = $('editToggleBtn'), saveEditBtn = $('saveEditBtn'), editCount = $('editCount');
+
+const fileA = $('fileA'), fileB = $('fileB');
+const fileALabel = $('fileALabel'), fileBLabel = $('fileBLabel');
+const doCompareBtn = $('doCompareBtn'), compareResult = $('compareResult');
+
+let allEntries = [];
+let currentFile = null;
+let batchFiles = [];
+let editMode = false;
+let pendingChanges = {};
+let activeGroup = '__all__';
+
+/* ============================================================
+   TOASTS
+   ============================================================ */
+const toastStack = $('toastStack');
+function toast(message, kind = 'info') {
+  const el = document.createElement('div');
+  el.className = `toast toast--${kind}`;
+  const icon = kind === 'error' ? 'i-alert' : kind === 'success' ? 'i-check' : 'i-info';
+  el.innerHTML = `
+    <span class="toast__icon"><svg class="icon"><use href="#${icon}"/></svg></span>
+    <span>${escapeHtml(message)}</span>`;
+  toastStack.appendChild(el);
+  setTimeout(() => {
+    el.style.transition = 'opacity 200ms, transform 200ms';
+    el.style.opacity = '0'; el.style.transform = 'translateY(6px)';
+    setTimeout(() => el.remove(), 220);
+  }, 3200);
+}
+
+/* ============================================================
+   THEME
+   ============================================================ */
+const themeToggle = $('themeToggle'), themeIcon = $('themeIcon');
+const savedTheme = localStorage.getItem('alborz-theme') || 'dark';
+document.documentElement.dataset.theme = savedTheme;
+updateThemeIcon();
+themeToggle.onclick = () => {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('alborz-theme', next);
+  updateThemeIcon();
+};
+function updateThemeIcon() {
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  themeIcon.innerHTML = `<use href="#${isDark ? 'i-sun' : 'i-moon'}"/>`;
+}
+
+/* ============================================================
+   TABS
+   ============================================================ */
+const tabs = document.querySelectorAll('.tab');
+const tabMap = { single: singleContainer, batch: batchContainer, compare: compareContainer };
+tabs.forEach(t => t.onclick = () => switchTab(t.dataset.tab));
+function switchTab(name) {
+  tabs.forEach(t => t.setAttribute('aria-selected', t.dataset.tab === name));
+  Object.entries(tabMap).forEach(([k, el]) => el.classList.toggle('hidden', k !== name));
+}
+
+/* ============================================================
+   DRAG & DROP
+   ============================================================ */
+btn.onclick = (e) => { e.stopPropagation(); input.click(); };
+drop.onclick = () => input.click();
+drop.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } };
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('is-active'); };
+drop.ondragleave = () => drop.classList.remove('is-active');
+drop.ondrop = (e) => {
+  e.preventDefault(); drop.classList.remove('is-active');
+  const files = Array.from(e.dataTransfer.files);
+  if (files.length) handleFiles(files);
+};
+input.onchange = () => {
+  const files = Array.from(input.files);
+  if (files.length) handleFiles(files);
+  input.value = '';
+};
+
+clearBtn.onclick = () => {
+  batchFiles = [];
+  batchContainer.classList.add('hidden');
+  switchTab('single');
+  singleContainer.classList.add('hidden');
+};
+
+/* ============================================================
+   ROUTER
+   ============================================================ */
+async function handleFiles(files) {
+  if (files.length === 1) {
+    switchTab('single');
+    await uploadSingle(files[0]);
+  } else {
+    switchTab('batch');
+    await uploadBatch(files);
+  }
+}
+
+/* ============================================================
+   SINGLE
+   ============================================================ */
+async function uploadSingle(file) {
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> در حال پردازش…`;
+
+  resetMap();
+  resetEditMode();
+  resetExplorer();
+  singleContainer.classList.remove('hidden');
+  renderSkeleton();
+
+  const fd = new FormData();
+  fd.append('file', file);
+
+  try {
+    const res = await fetch('/api/extract', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'خطای ناشناخته' }));
+      throw new Error(err.detail || 'خطا در پردازش فایل');
+    }
+    const data = await res.json();
+    currentFile = file;
+    renderInfo(data.file);
+    renderSummary(data.summary);
+    renderPrivacy(data.privacy);
+    loadGeo(file);
+    allEntries = data.entries || [];
+    buildGroupChips();
+    renderTable(allEntries);
+    search.value = '';
+    activeGroup = '__all__';
+  } catch (e) {
+    renderError(e.message);
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg class="icon"><use href="#i-plus"/></svg> انتخاب فایل‌ها`;
+  }
+}
+
+function resetMap() {
+  mapContainer.classList.add('hidden');
+  mapInfo.classList.add('hidden');
+  if (leafletMap) { leafletMap.remove(); leafletMap = null; leafletMarker = null; }
+}
+function resetEditMode() {
+  editMode = false; pendingChanges = {};
+  editToggleBtn.innerHTML = `<svg class="icon"><use href="#i-edit"/></svg> حالت ویرایش`;
+  saveEditBtn.classList.add('hidden');
+  editCount.classList.add('hidden');
+}
+function resetExplorer() { groupChips.innerHTML = ''; activeGroup = '__all__'; }
+
+function renderSkeleton() {
+  info.innerHTML = Array.from({ length: 5 }).map(() =>
+    `<div class="skeleton sk-line" style="width:${60 + Math.random() * 30}%"></div>`).join('');
+  privacyEl.innerHTML = '<div class="skeleton" style="height:100px"></div>';
+  summaryEl.innerHTML = '<div class="skeleton" style="height:140px"></div>';
+  result.innerHTML = '<div class="skeleton" style="height:260px"></div>';
+}
+
+function renderInfo(f) {
+  info.innerHTML = `
+    <dt>نام فایل</dt><dd class="filename" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</dd>
+    <dt>حجم</dt><dd>${f.size.toLocaleString('fa-IR')} B</dd>
+    <dt>نوع</dt><dd title="${escapeHtml(f.mime)}">${escapeHtml(f.mime)}</dd>
+    <dt>MD5</dt><dd title="${escapeHtml(f.md5)}">${escapeHtml(f.md5).slice(0, 24)}…</dd>
+    <dt>SHA-256</dt><dd title="${escapeHtml(f.sha256)}">${escapeHtml(f.sha256).slice(0, 24)}…</dd>`;
+}
+
+function renderSummary(summary) {
+  if (!summary || !summary.length) {
+    summaryEl.innerHTML = emptyState('i-file', 'خلاصه‌ای موجود نیست', 'این فایل متادیتای مهمی ندارد.');
+    return;
+  }
+  const rows = summary.map(s => `
+    <div class="summary-row">
+      <span class="summary-row__label">${escapeHtml(s.label)}</span>
+      <span class="summary-row__value" title="${escapeHtml(s.value)}">${escapeHtml(s.value)}</span>
+    </div>`).join('');
+  summaryEl.innerHTML = `
+    <h3 class="card__title"><svg class="icon"><use href="#i-info"/></svg> خلاصه اطلاعات مهم</h3>
+    <div class="summary-grid">${rows}</div>`;
+}
+
+function renderPrivacy(privacy) {
+  if (!privacy) { privacyEl.classList.add('hidden'); return; }
+  privacyEl.classList.remove('hidden');
+
+  const colorMap = { green: 'safe', yellow: 'medium', red: 'danger' };
+  const lvl = colorMap[privacy.color] || privacy.level || 'safe';
+
+  const risks = (privacy.risks || []).map(r => {
+    const rlvl = r.level === 'high' ? 'high' : 'medium';
+    const icon = rlvl === 'high' ? 'i-alert' : 'i-info';
+    return `
+      <div class="risk risk--${rlvl}">
+        <span class="risk__icon"><svg class="icon" style="width:15px;height:15px"><use href="#${icon}"/></svg></span>
+        <div class="risk__body">
+          <div class="risk__label">${escapeHtml(r.label)}</div>
+          <div class="risk__detail">${escapeHtml(r.detail)}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  privacyEl.innerHTML = `
+    <h3 class="card__title"><svg class="icon"><use href="#i-lock"/></svg> امتیاز حریم خصوصی</h3>
+    <div class="privacy-score privacy-score--${lvl}">
+      <span class="privacy-score__number">${privacy.score}</span>
+      <span class="privacy-score__denom">/ ۱۰۰</span>
+    </div>
+    <span class="privacy-badge privacy-badge--${lvl}">
+      ${escapeHtml(privacy.label || (lvl === 'safe' ? 'امن' : lvl === 'medium' ? 'متوسط' : 'پر خطر'))}
+    </span>
+    ${risks ? `<div class="risk-list">${risks}</div>` : ''}`;
+}
+
+function buildGroupChips() {
+  const groups = [...new Set(allEntries.map(e => e.group))].sort();
+  groupChips.innerHTML = '';
+  const mk = (label, value) => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.textContent = label;
+    b.setAttribute('aria-pressed', value === activeGroup ? 'true' : 'false');
+    b.onclick = () => {
+      activeGroup = value;
+      [...groupChips.children].forEach(c => c.setAttribute('aria-pressed', c === b ? 'true' : 'false'));
+      applyFilter();
+    };
+    groupChips.appendChild(b);
+  };
+  mk('همه', '__all__');
+  groups.forEach(g => mk(g, g));
+}
+
+function applyFilter() {
+  const q = search.value.toLowerCase().trim();
+  let list = allEntries;
+  if (activeGroup !== '__all__') list = list.filter(e => e.group === activeGroup);
+  if (q) list = list.filter(e =>
+    e.tag.toLowerCase().includes(q) ||
+    String(e.value).toLowerCase().includes(q) ||
+    e.group.toLowerCase().includes(q)
+  );
+  renderTable(list);
+}
+
+function renderTable(entries) {
+  if (!entries.length) {
+    result.innerHTML = emptyState('i-search', 'تگی یافت نشد', 'عبارت جستجو را تغییر دهید یا فیلتر را بردارید.');
+    return;
+  }
+  const rows = entries.map(e => {
+    const edited = pendingChanges.hasOwnProperty(e.tag);
+    const value = edited ? pendingChanges[e.tag] : e.value;
+    const badge = edited ? '<span class="edited-badge">ویرایش‌شده</span>' : '';
+    if (editMode) {
+      return `
+        <tr class="editable-row is-edited" data-tag="${escapeHtml(e.tag)}">
+          <td><span class="tag-group">${escapeHtml(e.group)}</span></td>
+          <td><span class="tag-name">${escapeHtml(e.tag)}</span></td>
+          <td>${badge}<input class="edit-input" type="text" value="${escapeHtml(String(value))}" data-tag="${escapeHtml(e.tag)}"></td>
+        </tr>`;
+    }
+    return `
+      <tr>
+        <td><span class="tag-group">${escapeHtml(e.group)}</span></td>
+        <td><span class="tag-name">${escapeHtml(e.tag)}</span></td>
+        <td><span class="tag-value" title="${escapeHtml(String(value))}">${escapeHtml(String(value))}</span></td>
+      </tr>`;
+  }).join('');
+
+  result.innerHTML = `
+    <table class="tag-table">
+      <thead><tr><th style="width:120px">گروه</th><th style="width:180px">تگ</th><th>مقدار</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+  if (editMode) {
+    result.querySelectorAll('input.edit-input').forEach(inp => {
+      inp.onchange = () => {
+        const tag = inp.dataset.tag;
+        const orig = allEntries.find(x => x.tag === tag);
+        if (!orig) return;
+        if (String(inp.value) === String(orig.value)) delete pendingChanges[tag];
+        else pendingChanges[tag] = inp.value;
+        updateEditCount();
+        inp.closest('tr').classList.toggle('is-edited', pendingChanges.hasOwnProperty(tag));
+      };
+    });
+  }
+}
+
+function emptyState(icon, title, body) {
+  return `
+    <div class="state">
+      <div class="state__icon"><svg class="icon"><use href="#${icon}"/></svg></div>
+      <p class="state__title">${escapeHtml(title)}</p>
+      <p class="state__body">${escapeHtml(body)}</p>
+    </div>`;
+}
+function renderError(msg) {
+  result.innerHTML = emptyState('i-alert', 'خطا', msg);
+  info.innerHTML = ''; privacyEl.innerHTML = ''; summaryEl.innerHTML = '';
+}
+
+/* ============================================================
+   BATCH
+   ============================================================ */
+async function uploadBatch(files) {
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> در حال پردازش ${files.length} فایل…`;
+
+  batchFiles = files.map(f => ({ file: f, result: null, error: null }));
+  renderBatchList();
+  fileCount.textContent = `${files.length} فایل`;
+
+  const fd = new FormData();
+  files.forEach(f => fd.append('files', f));
+
+  try {
+    const res = await fetch('/api/batch/extract', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('خطا در پردازش دسته‌ای');
+    const data = await res.json();
+    (data.files || []).forEach((r, i) => {
+      if (r.error) batchFiles[i].error = r.error;
+      else batchFiles[i].result = r;
+    });
+    renderBatchList();
+    toast('پردازش دسته‌ای کامل شد', 'success');
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg class="icon"><use href="#i-plus"/></svg> انتخاب فایل‌ها`;
+  }
+}
+
+function renderBatchList() {
+  filesList.innerHTML = '';
+  batchFiles.forEach((item, idx) => {
+    const card = document.createElement('div');
+    card.className = 'file-item';
+
+    const icon = getFileIcon(item.file.name);
+    const sizeKb = (item.file.size / 1024).toFixed(1);
+    let scoreHtml = '';
+    let metaHtml = `${sizeKb} KB`;
+
+    if (item.error) {
+      scoreHtml = `<span class="score-badge score-badge--danger">خطا</span>`;
+      metaHtml += ` — ${item.error}`;
+    } else if (item.result) {
+      const p = item.result.privacy || {};
+      const colorMap = { green: 'safe', yellow: 'medium', red: 'danger' };
+      const lvl = colorMap[p.color] || p.level || 'safe';
+      scoreHtml = `<span class="score-badge score-badge--${lvl}">${escapeHtml(p.label || '—')} · ${p.score ?? '—'}/۱۰۰</span>`;
+      const s = item.result.summary || [];
+      const model = s.find(x => x.label === 'مدل دستگاه');
+      const date = s.find(x => x.label === 'ساعت ضبط');
+      if (model) metaHtml += ` · ${model.value}`;
+      if (date)  metaHtml += ` · ${date.value}`;
+    } else {
+      scoreHtml = `<span class="score-badge score-badge--pending"><span class="spinner"></span> در انتظار</span>`;
+    }
+
+    card.innerHTML = `
+      <div class="file-item__icon"><svg class="icon"><use href="#${icon}"/></svg></div>
+      <div class="file-item__body">
+        <div class="file-item__name" title="${escapeHtml(item.file.name)}">${escapeHtml(item.file.name)}</div>
+        <div class="file-item__meta" title="${escapeHtml(metaHtml)}">${escapeHtml(metaHtml)}</div>
+      </div>
+      ${scoreHtml}
+      <button class="file-item__remove" aria-label="حذف از لیست" data-idx="${idx}">
+        <svg class="icon" style="width:16px;height:16px"><use href="#i-x"/></svg>
+      </button>`;
+
+    card.querySelector('.file-item__remove').onclick = () => {
+      batchFiles.splice(idx, 1);
+      if (!batchFiles.length) {
+        batchContainer.classList.add('hidden');
+        switchTab('single');
+      } else {
+        renderBatchList();
+        fileCount.textContent = `${batchFiles.length} فایل`;
+      }
+    };
+    filesList.appendChild(card);
+  });
+}
+
+function getFileIcon(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  if (['jpg','jpeg','png','gif','webp','heic','heif','avif','tiff','bmp'].includes(ext)) return 'i-image';
+  if (['mp4','mov','avi','mkv','webm','flv','wmv','m4v'].includes(ext)) return 'i-video';
+  if (['mp3','wav','flac','ogg','aac','m4a','opus'].includes(ext)) return 'i-music';
+  if (['pdf'].includes(ext)) return 'i-file-pdf';
+  return 'i-file';
+}
+
+batchStripBtn.onclick = async () => {
+  if (!batchFiles.length) { toast('لیست خالی است', 'error'); return; }
+  batchStripBtn.disabled = true;
+  batchStripBtn.innerHTML = `<span class="spinner"></span> در حال پاکسازی…`;
+
+  const fd = new FormData();
+  batchFiles.forEach(item => fd.append('files', item.file));
+  fd.append('mode', stripMode.value);
+
+  try {
+    const res = await fetch('/api/batch/strip', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('خطا در پاکسازی');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `alborz_cleaned_${Date.now()}.zip`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast('فایل ZIP آماده شد', 'success');
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    batchStripBtn.disabled = false;
+    batchStripBtn.innerHTML = `<svg class="icon"><use href="#i-download"/></svg> پاکسازی همه (ZIP)`;
+  }
+};
+
+/* ============================================================
+   STRIP / PDF / EDIT
+   ============================================================ */
+async function stripAndDownload(keep = '') {
+  if (!currentFile) return;
+  const fd = new FormData();
+  fd.append('file', currentFile);
+  fd.append('keep', keep);
+
+  stripBtn.disabled = true; stripKeepBtn.disabled = true;
+  try {
+    const res = await fetch('/api/strip', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('خطا در پاکسازی');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'clean_' + currentFile.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast('فایل پاک‌شده دانلود شد', 'success');
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    stripBtn.disabled = false; stripKeepBtn.disabled = false;
+  }
+}
+stripBtn.onclick = () => stripAndDownload('');
+stripKeepBtn.onclick = () => stripAndDownload('EXIF');
+
+pdfBtn.onclick = async () => {
+  if (!currentFile) return;
+  pdfBtn.disabled = true;
+  pdfBtn.innerHTML = `<span class="spinner"></span> در حال ساخت…`;
+  const fd = new FormData(); fd.append('file', currentFile);
+  try {
+    const res = await fetch('/api/report/pdf', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('خطا در ساخت PDF');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `report_${currentFile.name.replace(/\.[^.]+$/, '')}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast('گزارش PDF آماده شد', 'success');
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    pdfBtn.disabled = false;
+    pdfBtn.innerHTML = `<svg class="icon"><use href="#i-file-pdf"/></svg> گزارش PDF`;
+  }
+};
+
+editToggleBtn.onclick = () => {
+  editMode = !editMode;
+  if (editMode) {
+    editToggleBtn.innerHTML = `<svg class="icon"><use href="#i-x"/></svg> خروج از ویرایش`;
+    saveEditBtn.classList.remove('hidden');
+    pendingChanges = {};
+    updateEditCount();
+  } else {
+    editToggleBtn.innerHTML = `<svg class="icon"><use href="#i-edit"/></svg> حالت ویرایش`;
+    saveEditBtn.classList.add('hidden');
+    editCount.classList.add('hidden');
+    pendingChanges = {};
+  }
+  applyFilter();
+};
+
+function updateEditCount() {
+  const n = Object.keys(pendingChanges).length;
+  if (n > 0) {
+    editCount.classList.remove('hidden');
+    editCount.textContent = `${n} تغییر آماده ذخیره`;
+  } else {
+    editCount.classList.add('hidden');
+  }
+}
+
+saveEditBtn.onclick = async () => {
+  if (!currentFile || !Object.keys(pendingChanges).length) {
+    toast('هیچ تغییری اعمال نشده', 'error'); return;
+  }
+  saveEditBtn.disabled = true;
+  saveEditBtn.innerHTML = `<span class="spinner"></span> در حال ذخیره…`;
+
+  const fd = new FormData();
+  fd.append('file', currentFile);
+  fd.append('changes', JSON.stringify(pendingChanges));
+
+  try {
+    const res = await fetch('/api/edit', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'خطا' }));
+      throw new Error(err.detail || 'خطا در ویرایش');
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'edited_' + currentFile.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+
+    pendingChanges = {};
+    resetEditMode();
+    applyFilter();
+    toast('فایل ویرایش‌شده دانلود شد', 'success');
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    saveEditBtn.disabled = false;
+    saveEditBtn.innerHTML = `<svg class="icon"><use href="#i-save"/></svg> ذخیره و دانلود`;
+  }
+};
+
+/* ============================================================
+   GPS MAP
+   ============================================================ */
+async function loadGeo(file) {
+  mapContainer.classList.add('hidden');
+  const fd = new FormData(); fd.append('file', file);
+  try {
+    const res = await fetch('/api/geo', { method: 'POST', body: fd });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.has_gps) return;
+    mapContainer.classList.remove('hidden');
+    renderMap(data);
+  } catch (e) { /* silent */ }
+}
+
+function renderMap(data) {
+  const { lat, lon, alt, place, city, country } = data;
+  if (!leafletMap) {
+    leafletMap = L.map('map', { zoomControl: true }).setView([lat, lon], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap', maxZoom: 19,
+    }).addTo(leafletMap);
+  } else {
+    leafletMap.setView([lat, lon], 13);
+  }
+  if (leafletMarker) leafletMap.removeLayer(leafletMarker);
+  leafletMarker = L.marker([lat, lon]).addTo(leafletMap);
+  leafletMarker.bindPopup(
+    `<b>${escapeHtml(city || '')}${city && country ? '، ' : ''}${escapeHtml(country || '')}</b><br>
+     <span style="font-family:monospace">${lat.toFixed(4)}, ${lon.toFixed(4)}</span>`
+  ).openPopup();
+
+  let html = `<b>مختصات</b> <span dir="ltr">${lat.toFixed(6)}, ${lon.toFixed(6)}</span>`;
+  if (alt != null) html += `<br><b>ارتفاع</b> ${alt.toFixed(1)} متر`;
+  if (place) html += `<br><b>مکان</b> ${escapeHtml(place)}`;
+  mapInfo.innerHTML = html;
+  mapInfo.classList.remove('hidden');
+  setTimeout(() => leafletMap.invalidateSize(), 120);
+}
+
+/* ============================================================
+   COMPARE
+   ============================================================ */
+fileA.onchange = () => setFileLabel(fileA, fileALabel);
+fileB.onchange = () => setFileLabel(fileB, fileBLabel);
+function setFileLabel(inp, lbl) {
+  const f = inp.files[0];
+  lbl.textContent = f ? f.name : 'فایلی انتخاب نشده';
+  lbl.classList.toggle('is-empty', !f);
+}
+
+doCompareBtn.onclick = async () => {
+  if (!fileA.files[0] || !fileB.files[0]) {
+    toast('دو فایل انتخاب کنید', 'error'); return;
+  }
+  doCompareBtn.disabled = true;
+  doCompareBtn.innerHTML = `<span class="spinner"></span> در حال مقایسه…`;
+  compareResult.innerHTML = '<div class="skeleton" style="height:180px"></div>';
+
+  const fd = new FormData();
+  fd.append('file_a', fileA.files[0]);
+  fd.append('file_b', fileB.files[0]);
+
+  try {
+    const res = await fetch('/api/compare', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error('خطا در مقایسه');
+    const data = await res.json();
+    renderCompare(data);
+  } catch (e) {
+    compareResult.innerHTML = `<div class="state"><div class="state__icon"><svg class="icon"><use href="#i-alert"/></svg></div><p class="state__title">خطا</p><p class="state__body">${escapeHtml(e.message)}</p></div>`;
+  } finally {
+    doCompareBtn.disabled = false;
+    doCompareBtn.innerHTML = `<svg class="icon"><use href="#i-search"/></svg> مقایسه کن`;
+  }
+};
+
+function renderCompare(d) {
+  const s = d.stats;
+  let html = `
+    <div style="color:var(--text-secondary);font-size:13px;margin-bottom:var(--space-4)">
+      <b style="color:var(--text-primary)">A:</b> ${escapeHtml(d.file_a.name)} <span class="mono">(${d.file_a.count})</span>
+      &nbsp;·&nbsp;
+      <b style="color:var(--text-primary)">B:</b> ${escapeHtml(d.file_b.name)} <span class="mono">(${d.file_b.count})</span>
+    </div>
+    <div class="diff-stats">
+      <span class="diff-stat diff-stat--a">فقط A · ${s.only_in_a}</span>
+      <span class="diff-stat diff-stat--b">فقط B · ${s.only_in_b}</span>
+      <span class="diff-stat diff-stat--changed">تغییر یافته · ${s.changed}</span>
+      <span class="diff-stat diff-stat--same">یکسان · ${s.same}</span>
+    </div>`;
+
+  if (d.changed.length) {
+    html += `
+      <div class="diff-section">
+        <h4 class="diff-section__title"><span class="dot dot--c"></span> تگ‌های تغییر یافته</h4>
+        <table class="tag-table">
+          <thead><tr><th>تگ</th><th>در A</th><th>در B</th></tr></thead>
+          <tbody>${d.changed.map(c => `
+            <tr>
+              <td><span class="tag-name">${escapeHtml(c.tag)}</span></td>
+              <td><span class="tag-value" style="color:var(--danger-500);text-decoration:line-through">${escapeHtml(c.value_a)}</span></td>
+              <td><span class="tag-value" style="color:var(--success-500)">${escapeHtml(c.value_b)}</span></td>
+            </tr>`).join('')}</tbody>
+        </table>
+      </div>`;
+  }
+  if (d.only_in_a.length) {
+    html += `
+      <div class="diff-section">
+        <h4 class="diff-section__title"><span class="dot dot--a"></span> فقط در A</h4>
+        <table class="tag-table"><tbody>${d.only_in_a.map(e => `
+          <tr>
+            <td style="width:180px"><span class="tag-name">${escapeHtml(e.tag)}</span></td>
+            <td><span class="tag-value">${escapeHtml(String(e.value)).slice(0,200)}</span></td>
+          </tr>`).join('')}</tbody></table>
+      </div>`;
+  }
+  if (d.only_in_b.length) {
+    html += `
+      <div class="diff-section">
+        <h4 class="diff-section__title"><span class="dot dot--b"></span> فقط در B</h4>
+        <table class="tag-table"><tbody>${d.only_in_b.map(e => `
+          <tr>
+            <td style="width:180px"><span class="tag-name">${escapeHtml(e.tag)}</span></td>
+            <td><span class="tag-value">${escapeHtml(String(e.value)).slice(0,200)}</span></td>
+          </tr>`).join('')}</tbody></table>
+      </div>`;
+  }
+  compareResult.innerHTML = html;
+}
+
+/* ============================================================
+   SEARCH
+   ============================================================ */
+let searchTimer;
+search.oninput = () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(applyFilter, 120);
+};
+
+/* ============================================================
+   TAG TOOLTIP
+   ============================================================ */
+const tagTooltip = $('tagTooltip');
+let tooltipCache = {};
+
+document.addEventListener('mouseover', async (e) => {
+  const target = e.target.closest('.tag-name');
+  if (!target || editMode) return;
+  const tagName = target.textContent.trim();
+  if (!tagName) return;
+  if (tooltipCache[tagName]) { showTooltip(e, tooltipCache[tagName]); return; }
+  try {
+    const res = await fetch(`/api/tag/${encodeURIComponent(tagName)}`);
+    if (!res.ok) return;
+    const info = await res.json();
+    tooltipCache[tagName] = info;
+    showTooltip(e, info);
+  } catch (_) {}
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!tagTooltip.classList.contains('is-visible')) return;
+  positionTooltip(e);
+});
+document.addEventListener('mouseout', (e) => {
+  if (e.target.closest('.tag-name')) {
+    tagTooltip.classList.remove('is-visible');
+    tagTooltip.setAttribute('aria-hidden', 'true');
+  }
+});
+
+function showTooltip(e, info) {
+  let html = `<div class="tag-tooltip__tag">${escapeHtml(info.tag || '')}</div>`;
+  html += `<div class="tag-tooltip__desc">${escapeHtml(info.description || '')}</div>`;
+  if (info.categories && info.categories.length) {
+    const labels = {
+      camera: 'دوربین', exposure: 'نوردهی', time: 'زمان',
+      location: 'مکان', author: 'نویسنده', privacy_sensitive: 'حساس', technical: 'فنی'
+    };
+    html += '<div class="tag-tooltip__cats">';
+    for (const c of info.categories) {
+      const cls = c === 'privacy_sensitive' ? 'tag-tooltip__cat tag-tooltip__cat--privacy' : 'tag-tooltip__cat';
+      html += `<span class="${cls}">${labels[c] || c}</span>`;
+    }
+    html += '</div>';
+  }
+  if (info.is_sensitive) {
+    html += `<div class="tag-tooltip__warn">
+      <svg class="icon" style="width:14px;height:14px"><use href="#i-alert"/></svg>
+      حاوی اطلاعات حساس است</div>`;
+  }
+  tagTooltip.innerHTML = html;
+  tagTooltip.classList.add('is-visible');
+  tagTooltip.setAttribute('aria-hidden', 'false');
+  positionTooltip(e);
+}
+
+function positionTooltip(e) {
+  const pad = 16;
+  const rect = tagTooltip.getBoundingClientRect();
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if (x + rect.width > window.innerWidth)  x = e.clientX - rect.width - pad;
+  if (y + rect.height > window.innerHeight) y = e.clientY - rect.height - pad;
+  tagTooltip.style.left = x + 'px';
+  tagTooltip.style.top = y + 'px';
+}
+
+/* ============================================================
+   VERSION
+   ============================================================ */
+(async () => {
+  try {
+    const res = await fetch('/api/version');
+    const v = await res.json();
+    $('versionPill').textContent = 'v' + v.version;
+  } catch (_) { $('versionPill').textContent = 'v—'; }
+})();
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+$('year').textContent = new Date().getFullYear();
+
+/* Keyboard shortcuts */
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    tagTooltip.classList.remove('is-visible');
+    if (editMode) editToggleBtn.click();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    if (!singleContainer.classList.contains('hidden')) search.focus();
+  }
+});
+</script>
+</body>
+</html>
