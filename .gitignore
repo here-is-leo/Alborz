@@ -1,0 +1,82 @@
+# ============ Python ============
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv/
+.conda/
+*.egg-info/
+.installed.cfg
+*.egg
+build/
+dist/
+*.spec.bak
+
+# ============ Test Files ============
+test.jpg
+test.jpeg
+test.png
+test.mp4
+test.mov
+test.mp3
+test.wav
+canon.jpg
+canon_clean.jpg
+clean.jpg
+gps_test.jpg
+sample.*
+report.html
+report_*.pdf
+*.tmp
+*.bak
+
+# ============ IDE / Editor ============
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# ============ OS ============
+.DS_Store
+Thumbs.db
+desktop.ini
+*.lnk
+
+# ============ Logs ============
+*.log
+logs/
+metatool.log
+alborz.log
+
+# ============ Testing / Coverage ============
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# ============ Secrets ============
+.env
+.env.*
+*.pem
+*.key
+secrets.json
+credentials.json
+
+# ============ Distribution ============
+*.zip
+!docs/**/*.zip
+*.tar.gz
+
+# ============ Local Dev ============
+local_settings.py
+config.local.py
