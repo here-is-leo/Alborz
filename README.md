@@ -12,7 +12,7 @@
 <br>
 
 <!-- Logo Mark -->
-<img src="Alborz/web/static/alborz-logo.svg" alt="Alborz" width="100" height="66"/>
+<img src="Alborz/web/static/Alborz.png" alt="Alborz" width="100" height="66"/>
 
 <br><br>
 
