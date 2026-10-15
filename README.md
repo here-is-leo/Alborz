@@ -11,9 +11,6 @@
 
 <br>
 
-<!-- Logo Mark -->
-<img src="Alborz/web/static/alborz.png" alt="Alborz" width="100" height="66"/>
-
 <br><br>
 
 <!-- Tagline - EN & FA -->
